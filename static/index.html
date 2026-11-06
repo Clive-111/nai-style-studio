@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#111220">
+  <title>画风串收藏台 · NovelAI</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='10' fill='%23bbb1ff'/%3E%3Cpath d='m20 7 13 8-13 8-13-8zM7 20l13 8 13-8M7 25l13 8 13-8' fill='none' stroke='%23252142' stroke-width='2'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="/static/style.css">
+  <script defer src="/static/app.js"></script>
+</head>
+<body>
+  <a class="skip" href="#workspace">进入工作台</a>
+  <header class="top">
+    <div class="top-inner">
+      <a class="brand" href="#workspace"><span class="brand-mark" data-icon="layers"></span><span>画风串收藏台</span></a>
+      <nav aria-label="主导航"><a class="nav-link active" href="#workspace">收藏台</a><a class="nav-link" href="/generate">NAI 生图</a></nav>
+      <div class="top-actions"><span class="local"><i></i>本地运行</span><button class="open-btn" id="open"><i data-icon="upload"></i>打开原图</button></div>
+    </div>
+  </header>
+  <main>
+    <section id="workspace" aria-labelledby="workspace-title">
+      <div class="section-heading"><div><p class="eyebrow"><span></span>STYLE INSPECTOR</p><h1 id="workspace-title">解析工作台</h1><p class="subtitle">从 NovelAI 原图提取画风，整理成随时可复制的配方。</p></div></div>
+      <div class="workbench">
+        <article class="panel preview-panel">
+          <div class="panel-head"><h2><i data-icon="image"></i>例图预览</h2><button class="text-btn" id="replace"><i data-icon="upload"></i>拖入或选择 PNG / WebP</button></div>
+          <div id="drop" class="artboard">
+            <img id="preview" hidden alt="">
+            <div class="empty-art" id="empty-art"><span class="empty-frame"><i data-icon="image-plus"></i></span><strong id="empty-title">拖入一张 NovelAI 原图</strong><button id="choose" class="small-outline">选择原图</button></div>
+            <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
+            <div class="drop-overlay"><i data-icon="upload"></i><strong>松开以解析原图</strong></div>
+            <div id="import-status" class="import-status" role="status" hidden><span class="import-spinner" aria-hidden="true"></span><span id="import-message"></span></div>
+          </div>
+          <div class="preview-foot"><span id="preview-label"><i data-icon="file"></i><span id="file-label">等待原图</span></span><span class="mono" id="dimensions"></span></div>
+          <div id="example-tools" class="example-tools" hidden><div class="example-list" id="example-list"></div><button id="set-cover" class="small-outline" hidden>设为封面</button></div>
+        </article>
+        <article class="panel editor">
+          <div class="panel-head"><h2><i data-icon="sliders"></i>画风配方</h2><span class="badge" id="mode">待解析</span></div>
+          <div class="edit-body">
+            <label class="field" for="name">画风名称<input id="name" placeholder="给这套画风起个名字" autocomplete="off"></label>
+            <label class="field" for="description">一句说明<textarea id="description" rows="2" placeholder="例如：低饱和灰调、柔和边缘光、电影质感"></textarea></label>
+            <div class="field recipe-field"><div class="field-head"><label for="recipe">画师串</label><span class="mono" id="char-count">0 字符</span><button id="copy" class="text-btn"><i data-icon="copy"></i><span>复制画师串</span></button></div><textarea id="recipe" spellcheck="false" autocapitalize="off" placeholder="拖入原图，或手动粘贴画师串"></textarea></div>
+            <p id="warnings" class="warnings" hidden></p>
+            <div class="field"><div class="field-head"><label for="negative">默认负面提示词</label><button id="copy-negative" class="text-btn" disabled><i data-icon="copy"></i><span>复制负面词</span></button></div><textarea id="negative" readonly spellcheck="false" rows="3" placeholder="未记录"></textarea></div>
+            <dl id="quick-params" aria-label="当前例图的生成参数"></dl>
+            <button id="save" class="secondary"><i data-icon="bookmark"></i><span>保存到收藏</span></button>
+            <details id="raw"><summary><i data-icon="code"></i>原始提示词与参数<i class="chev" data-icon="chevron"></i></summary><div id="metadata"></div></details>
+          </div>
+        </article>
+      </div>
+    </section>
+    <section id="library" aria-labelledby="library-title">
+      <div class="library-head"><div><p class="eyebrow"><span></span>RECIPE LIBRARY</p><div class="title-row"><h2 id="library-title">画风收藏库</h2><span class="count" id="library-count">0</span></div></div>
+      <label class="search"><i data-icon="search"></i><input type="search" id="search" aria-label="搜索收藏" placeholder="搜索画风、说明或画师名"></label></div>
+      <div class="cards" id="cards"></div><div id="no-results" class="empty-list" hidden>没有找到匹配的画风。</div>
+    </section>
+    <footer><span><i data-icon="layers"></i>画风串收藏台</span><span>本地解析 · 本机收藏</span></footer>
+  </main>
+  <dialog id="save-dialog" aria-labelledby="dialog-title">
+    <div class="dialog-head"><span class="dialog-icon"><i data-icon="bookmark"></i></span><button id="dialog-close" class="icon-btn" aria-label="取消保存"><i data-icon="x"></i></button></div>
+    <h2 id="dialog-title">保存到收藏</h2><p id="match-note" class="dialog-note"></p>
+    <label for="target" class="field">保存位置<select id="target"></select></label>
+    <p id="target-note" class="dialog-note"></p><div class="dialog-actions"><button id="cancel" class="secondary">取消</button><button id="confirm" class="primary">确认保存</button></div>
+  </dialog>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <input type="file" id="file" accept="image/png,image/webp,.png,.webp" hidden>
+</body>
+</html>

@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#131322"><title>NAI 生图 · 画风串收藏台</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='10' fill='%23c4b7ff'/%3E%3Cpath d='m20 6 3 11 11 3-11 3-3 11-3-11-11-3 11-3z' fill='%23222236'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="/static/generate.css"><script defer src="/static/generate.js"></script>
+</head>
+<body>
+  <header class="topbar"><a class="brand" href="/"><span class="brand-symbol">✧</span><span>画风串收藏台</span></a>
+    <nav aria-label="主导航"><a href="/">收藏台</a><a href="/generate" aria-current="page">NAI 生图</a></nav>
+    <div class="top-tools"><span class="local-dot">本地工作室</span><button id="settings-open" class="quiet"><span aria-hidden="true">⚙</span> 接口设置</button></div>
+  </header>
+  <nav class="mobile-tabs" aria-label="工作区"><button data-pane="settings" class="active">设置</button><button data-pane="result">画布</button><button data-pane="history">历史</button></nav>
+  <main class="studio" data-mobile="settings">
+    <aside class="settings-pane pane" aria-label="生图设置">
+      <div class="settings-scroll">
+        <div class="pane-heading"><div><span class="eyebrow">IMAGE GENERATION</span><h1>你的下一幅画</h1></div><span class="pill" id="effort">HIGH</span></div>
+        <label class="field">模型<select id="model" data-field></select></label>
+        <p class="hint" id="model-note">高模式 · 完整参数</p>
+        <section class="control-section composition-materials"><div class="section-title"><h2><span class="step-index">01</span> 创作素材</h2><span class="muted">需求 · 图片 · 画师串</span></div>
+          <label class="field" for="request">中文需求</label><textarea id="request" data-field rows="3" placeholder="描述想画的内容、保留的特点或要修改的地方。你的文字要求优先。"></textarea>
+          <div class="label-row"><span>AI 参考图</span><button id="analysis-upload" class="text-button">＋ 选择图片</button></div>
+          <div id="analysis-empty" class="analysis-empty"><span>从图片理解画面、构图和画风</span><button id="analysis-current" class="text-button" disabled>使用当前图片</button></div>
+          <div id="analysis-card" class="analysis-card" hidden><button id="analysis-view" aria-label="查看 AI 参考图"><img id="analysis-thumb" alt="AI 参考图"></button><div><strong>供 AI 理解画面与画风</strong><span>上传后保持当前生成模式</span><button id="analysis-to-base" class="text-button">用作重绘底图 ↗</button></div><button id="analysis-remove" class="icon-btn" aria-label="移除 AI 参考图">×</button></div>
+          <div class="label-row"><span>画风素材</span><button id="style-open" class="text-button">▧ 从收藏选择</button></div>
+          <div id="selected-style" class="selected-style" hidden><img id="selected-cover" alt=""><div><strong id="selected-name"></strong><span id="selected-example"></span></div><button id="style-clear" class="icon-btn" aria-label="取消画风关联">×</button></div>
+          <div class="label-row"><label for="recipe">画师串</label><button class="text-button" data-copy="recipe">复制</button></div>
+          <textarea id="recipe" data-field class="prompt-text" rows="5" spellcheck="false" placeholder="画师、权重、色调、光影、渲染与材质配方"></textarea>
+          <div class="label-row"><label for="negative">负面提示词</label><button class="text-button" data-copy="negative">复制</button></div>
+          <textarea id="negative" data-field class="prompt-text" rows="3" spellcheck="false" placeholder="沿用所选画风的负面词，也可手动修改。AI 整理保持此框内容。"></textarea>
+          <p class="hint">点击生成后，AI 自动结合需求、参考图和画师串整理并出图。输入内容保持原样，负面词独立发送。</p>
+          <details id="previous-record" hidden><summary>保留的旧提示词记录</summary><pre id="previous-text"></pre><button id="copy-previous" class="text-button">复制旧文本</button></details>
+        </section>
+        <section class="control-section"><div class="section-title"><h2>图像设置</h2><span class="muted" id="pixel-count">1.05 MP</span></div>
+          <label class="field">尺寸预设<select id="size-preset"><option value="1024,1024">方形 · 1024 × 1024</option><option value="832,1216">竖图 · 832 × 1216</option><option value="1216,832">横图 · 1216 × 832</option><option value="1024,1536">大竖图 · 1024 × 1536</option><option value="1536,1024">大横图 · 1536 × 1024</option><option value="1472,1472">大方形 · 1472 × 1472</option><option value="1920,1088">壁纸 · 1920 × 1088</option><option value="custom">自定义</option></select></label>
+          <div class="size-row"><label class="field">宽度<input id="width" data-field type="number" min="64" max="4096" step="64"></label><button id="swap-size" class="icon-btn" title="宽高互换" aria-label="宽高互换">⇄</button><label class="field">高度<input id="height" data-field type="number" min="64" max="4096" step="64"></label></div>
+          <div id="size-error" class="inline-error" hidden><span></span><button id="nearest-size" class="text-button">使用最近可用尺寸</button></div>
+          <div class="param-grid">
+            <label class="field">Sampler<select id="sampler" data-field></select></label>
+            <label class="field">Steps<input id="steps" data-field type="number" min="1" max="50" step="1"></label>
+            <label class="field">Prompt Guidance<input id="guidance" data-field type="number" min="0" max="10" step="0.1"></label>
+            <label class="field">Guidance Rescale<input id="rescale" data-field type="number" min="0" max="1" step="0.01"></label>
+            <label class="field">负面提示词强度<input id="uc_strength" data-field type="number" min="0" max="1.5" step="0.05"></label>
+            <label class="field">噪声调度<select id="schedule" data-field></select></label>
+            <label class="field">种子<input id="seed" data-field type="number" min="0" max="4294967295" step="1" placeholder="随机"></label>
+            <label class="field">生成数量<select id="count" data-field><option value="1">1 张</option><option value="2">2 张 · 逐张生成</option><option value="3">3 张 · 逐张生成</option><option value="4">4 张 · 逐张生成</option></select></label>
+          </div>
+        </section>
+        <section class="control-section"><div class="section-title"><h2>图像引导</h2><button id="base-upload" class="text-button">＋ 添加底图</button></div>
+          <div class="segmented" id="modes"><button data-mode="generate" class="active">文生图</button><button data-mode="img2img">底图重绘</button><button data-mode="infill">局部重绘</button></div>
+          <div id="base-controls" hidden><div class="base-row"><img id="base-thumb" alt="底图"><span id="base-label">等待底图</span><button id="base-remove" class="icon-btn" aria-label="移除底图">×</button></div>
+            <label class="field">适配目标画布<select id="fit" data-field><option value="pad">等比缩放并补边</option><option value="crop">等比缩放并居中裁剪</option></select></label>
+            <div class="param-grid"><label class="field">Strength<input id="strength" data-field type="number" min="0" max="1" step="0.05"></label><label class="field">Noise<input id="noise" data-field type="number" min="0" max="1" step="0.05"></label></div>
+            <button id="edit-mask" class="soft full">绘制重绘遮罩</button><p class="hint" id="mask-status">白色区域重绘，其余区域保留。</p>
+          </div>
+          <details class="subsection"><summary>人物／画风精确参考 <span id="reference-badge" class="muted">V4.5</span></summary>
+            <p class="hint" id="reference-note">精确参考适用于 V4.5，每张参考图会产生额外计费。</p>
+            <fieldset id="reference-fields"><label class="check"><input type="checkbox" id="use_reference" data-field>启用精确参考</label>
+              <button id="reference-upload" class="quiet full">＋ 选择参考图</button><img id="reference-thumb" class="reference-thumb" hidden alt="参考图">
+              <label class="field">参考类型<select id="reference_type" data-field><option value="character">人物</option><option value="style">画风</option><option value="character&style">人物与画风</option></select></label>
+              <div class="param-grid"><label class="field">影响强度<input id="reference_strength" data-field type="number" min="0" max="1" step="0.05"></label><label class="field">还原度 Fidelity<input id="reference_fidelity" data-field type="number" min="0" max="1" step="0.05"></label></div>
+            </fieldset>
+          </details>
+        </section>
+        <details class="control-section advanced"><summary>高级设置</summary><div class="param-grid"><label class="field">整理时纳入质量标签<select id="quality" data-field><option value="none">关闭 · 由素材决定</option><option value="standard">标准</option></select></label><label class="field">负面预设<select id="uc_preset" data-field><option value="none">关闭 · 仅自定义</option><option value="heavy">Heavy</option></select></label></div><p id="advanced-status" class="hint"></p></details>
+        <details class="control-section" id="request-preview"><summary>素材与参数预览</summary><p class="hint">点击生成后自动整理。实际正向文本保存在当次生成记录中。</p><button id="refresh-preview" class="text-button">刷新预览</button><pre id="final-request">填写后展开查看。</pre></details>
+      </div>
+      <div class="generate-footer"><p id="submit-error" class="inline-error" role="alert" hidden></p><button id="generate" class="generate-btn"><span>✧</span> 生成图片 <small id="generate-count">1 张</small></button><button id="stop" class="stop-btn" hidden>停止后续图片</button></div>
+    </aside>
+    <section class="result-pane pane" aria-label="生成画布">
+      <div class="canvas-head"><div><span class="eyebrow">CANVAS</span><h2 id="canvas-title">创作画布</h2></div><div class="canvas-switch"><button id="view-result" class="text-button" disabled>成图</button><button id="view-analysis" class="text-button" disabled>AI 参考</button><button id="view-base" class="text-button" disabled>底图</button></div><span id="canvas-dimensions" class="muted"></span></div>
+      <div class="canvas" id="canvas"><img id="canvas-image" hidden alt="生成结果"><div id="canvas-empty" class="canvas-empty"><div class="canvas-emblem">✧</div><h2>把想法整理成一幅画</h2><p>写下需求，选择画师串或拖入参考图。<br>点击生成，AI 自动整理并交给 NAI 出图。</p><button id="canvas-style" class="soft">从收藏选择画风 <span>↗</span></button><button id="canvas-upload" class="text-button">或添加一张 AI 参考图</button></div><div id="canvas-progress" class="canvas-progress" hidden><span class="spinner"></span><span id="progress-text">生成中…</span></div></div>
+      <div class="result-info"><div id="job-status" role="status">准备就绪</div><div id="result-actions" class="result-actions" hidden><button id="reroll" class="soft" disabled title="复用这张图的完整正向提示词，负面词和生成参数使用左侧当前设置">↻ 按此提示词重 Roll</button><a id="download" class="quiet" download>↓ 下载原图</a><button id="use-analysis" class="quiet">供 AI 参考</button><button id="use-base" class="quiet">用作底图</button><button id="inpaint-result" class="quiet">局部重绘</button><button id="collect" class="soft">＋ 加入收藏</button></div><p id="reroll-note" class="hint" hidden></p></div>
+      <details id="actual-details" class="actual-details" hidden><summary>这张图的实际提示词与参数 <button id="reuse" class="text-button">重新套用</button></summary><button id="copy-actual" class="text-button">复制实际正向提示词</button><pre id="actual-json"></pre></details>
+      <details id="job-details" class="actual-details" hidden><summary>本次任务提示词记录</summary><button id="copy-job" class="text-button">复制本次正向文本</button><pre id="job-json"></pre></details>
+    </section>
+    <aside class="history-pane pane" aria-label="本地生成历史"><div class="history-head"><div><span class="eyebrow">HISTORY</span><h2>生成历史 <span id="history-count">0</span></h2></div><button id="history-refresh" class="icon-btn" aria-label="刷新历史">↻</button></div><div id="history-list" class="history-list"></div><div id="history-empty" class="history-empty"><span>▧</span><p>成图会自动保存在这里</p><small>重启后仍可查看与套用</small></div><div class="history-foot">保存在本机 · 随时继续</div></aside>
+  </main>
+  <dialog id="settings-dialog" class="settings-dialog"><div class="dialog-header"><div><span class="eyebrow">CONNECTIONS</span><h2>接口设置</h2></div><button data-close="settings-dialog" class="icon-btn" aria-label="关闭设置">×</button></div>
+    <p class="hint">凭据使用 Windows 当前用户加密保存在本机。留空密钥框会保留已保存的密钥。</p>
+    <section><h3>NovelAI 生图</h3><label class="field">API 地址<input id="nai-url" type="url" placeholder="填写你的 NAI 接口地址"></label><label class="field">Token<input id="nai-key" type="password" autocomplete="new-password" placeholder="填入 Token"></label><div class="button-row"><span id="nai-key-state" class="hint"></span><button id="nai-clear" class="text-button push">清除已保存 Token</button><button id="nai-test" class="quiet">测试连接</button></div></section>
+    <section><h3>提示词助手 <span class="muted">OpenAI 兼容接口</span></h3><label class="field">API 地址<input id="assistant-url" type="url" placeholder="填写你的 OpenAI 兼容接口地址"></label><label class="field">API Key<input id="assistant-key" type="password" autocomplete="new-password"></label><div class="button-row"><span id="assistant-key-state" class="hint"></span><button id="assistant-clear" class="text-button push">清除已保存 Key</button></div><label class="field">模型名<input id="assistant-model" list="assistant-models" placeholder="手动输入模型名，或从模型列表选择"></label><datalist id="assistant-models"></datalist><div class="button-row"><button id="load-models" class="quiet">读取模型列表</button><button id="assistant-test" class="quiet">测试连接</button></div><p class="hint">看图写词需要选择支持视觉输入的模型。</p></section>
+    <p id="settings-status" class="notice" role="status"></p><div class="dialog-footer"><button data-close="settings-dialog" class="quiet">关闭</button><button id="settings-save" class="primary">保存设置</button></div>
+  </dialog>
+  <dialog id="style-dialog" class="style-dialog"><div class="dialog-header"><div><span class="eyebrow">YOUR RECIPES</span><h2>选择一套画风</h2></div><button data-close="style-dialog" class="icon-btn" aria-label="关闭画风选择">×</button></div><input id="style-search" type="search" placeholder="搜索名称、说明或画师名" aria-label="搜索画风"><div id="style-list" class="style-list"></div><div id="style-example-select" hidden><h3 id="picker-name"></h3><label class="field">使用例图的参数<select id="picker-example"></select></label><p id="picker-note" class="hint"></p><button id="apply-style" class="primary full">带入画师串与例图参数</button></div></dialog>
+  <dialog id="mask-dialog" class="mask-dialog"><div class="dialog-header"><div><h2>局部重绘</h2><p class="hint">涂色区域将重绘；坐标按目标图片像素保存。</p></div><button data-close="mask-dialog" class="icon-btn" aria-label="关闭遮罩编辑">×</button></div><div class="mask-toolbar"><button id="brush" class="soft active">画笔</button><button id="eraser" class="quiet">橡皮擦</button><label>笔刷 <input id="brush-size" type="range" min="4" max="220" value="48"><output id="brush-value">48</output></label><button id="mask-undo" class="quiet">撤销</button><button id="mask-clear" class="quiet">清空</button><label>缩放 <select id="mask-zoom"><option value="0.5">50%</option><option value="1" selected>100%</option><option value="1.5">150%</option><option value="2">200%</option></select></label></div><div class="mask-viewport"><div id="mask-stage"><canvas id="mask-base"></canvas><canvas id="mask-overlay"></canvas></div></div><div class="dialog-footer"><span id="mask-dimensions" class="hint"></span><button data-close="mask-dialog" class="quiet push">取消</button><button id="mask-apply" class="primary">应用遮罩</button></div></dialog>
+  <dialog id="collect-dialog"><div class="dialog-header"><h2>加入画风收藏</h2><button data-close="collect-dialog" class="icon-btn" aria-label="关闭收藏对话框">×</button></div><label class="field">保存位置<select id="collect-target"></select></label><div id="collect-new"><label class="field">画风名称<input id="collect-name"></label><label class="field">一句说明<input id="collect-description" placeholder="描述这套画风"></label></div><p class="hint">例图保存当次原始提示词与参数，画师串采用本次生成时的版本。</p><p id="collect-error" class="inline-error" hidden></p><div class="dialog-footer"><button data-close="collect-dialog" class="quiet">取消</button><button id="collect-confirm" class="primary">确认收藏</button></div></dialog>
+  <input id="analysis-file" type="file" accept="image/png,image/webp,image/jpeg" hidden><input id="base-file" type="file" accept="image/png,image/webp,image/jpeg" hidden><input id="reference-file" type="file" accept="image/png,image/webp,image/jpeg" hidden>
+  <div id="toast" class="toast" role="status"></div>
+</body></html>
