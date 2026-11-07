@@ -14,6 +14,7 @@ from urllib.parse import parse_qsl, urlencode
 
 from inspector import inspect_png
 from library import Library
+from recipe_repair import repair_recipe
 from generation import GenerationService, MODELS, SAMPLERS, SCHEDULES, DEFAULTS, nearest_size
 
 ROOT = Path(__file__).resolve().parent
@@ -22,6 +23,7 @@ ASSETS = {"/": ("index.html", "text/html; charset=utf-8"),
           "/generate": ("generate.html", "text/html; charset=utf-8"),
           "/static/generate.js": ("generate.js", "text/javascript; charset=utf-8"),
           "/static/generate.css": ("generate.css", "text/css; charset=utf-8"),
+          "/static/recipe-repair.js": ("recipe-repair.js", "text/javascript; charset=utf-8"),
           "/index.html": ("index.html", "text/html; charset=utf-8"),
           "/static/app.js": ("app.js", "text/javascript; charset=utf-8"),
           "/static/style.css": ("style.css", "text/css; charset=utf-8")}
@@ -126,6 +128,13 @@ class Handler(BaseHTTPRequestHandler):
             if path == "/api/inspect" and self.command == "POST":
                 data = self.read_body(MAX_PNG)
                 return self.reply(inspect(data) | {"hash": hashlib.sha256(data).hexdigest()})
+            if path == "/api/recipe/repair" and self.command == "POST":
+                if self.headers.get_content_type() != "application/json":
+                    return self.reply({"error": "需要 JSON 数据"}, 415)
+                payload = json.loads(self.read_body(1_000_000))
+                if not isinstance(payload, dict):
+                    raise ValueError("无效的画师串内容")
+                return self.reply(repair_recipe(payload.get("text")))
             if (path == "/api/save" and self.command == "POST") or (sid and self.command == "PUT"):
                 if self.headers.get_content_type() != "application/json":
                     return self.reply({"error": "需要 JSON 数据"}, 415)
@@ -251,6 +260,9 @@ def main():
                 pass
         raise
     with server:
+        repaired = library.repair_saved_recipes()
+        if repaired:
+            print(json.dumps(repaired, ensure_ascii=False), flush=True)
         server.RequestHandlerClass = partial(Handler, library=library, generator=GenerationService(library))
         print(url, flush=True)
         if args.open:

@@ -65,6 +65,7 @@ function putForm(item,mode,warnings=[]){
   $('raw').open=false;syncForm();
 }
 for(const id of ['name','description','recipe'])$(id).addEventListener('input',syncForm);
+const recipeEditor=RecipeRepair.bind($('recipe'),{read:()=>valueOf('recipe'),onChange:syncForm,notify:toast});
 
 const labels={prompt:'正向提示词',negative:'负面提示词',character_prompt:'角色正向提示词',character_negative:'角色负面提示词',model:'模型',width:'宽度',height:'高度',seed:'种子',steps:'步数',sampler:'采样器',schedule:'噪声调度',guidance:'提示词引导值',rescale:'引导重缩放',uc_strength:'负面提示词强度',raw:'原始元数据'};
 function metadata(meta={}){
@@ -156,7 +157,7 @@ function renderCards(){
     const heading=el('div','card-heading');heading.append(name,modelBadge(item.cover_model));
     const desc=el('p','card-desc',item.description||'可在工作台补充画风说明');desc.title=item.description||'';
     const copy=el('button','card-copy');copy.append(icon('copy'),el('span','','复制画风串'));copy.setAttribute('aria-label','复制画风串 · '+item.name);
-    copy.onclick=()=>copyText(item.recipe,copy);
+    copy.onclick=async()=>{try{const fixed=await RecipeRepair.inspect(item.recipe,true);if(fixed.count)toast(`已修复 ${fixed.count} 处画师 emoji 格式。`);await copyText(fixed.text,copy);}catch(err){report(err);}};
     const generate=el('a','card-generate','用此画风生图');generate.href='/generate?style='+item.id;
     body.append(heading,desc,copy,generate);card.append(cover,body);cards.append(card);
   }
@@ -178,7 +179,7 @@ async function copyText(text,button,label='复制画风串'){
     clearTimeout(copyTimers.get(button));copyTimers.set(button,setTimeout(()=>span.textContent=label,1500));
   }catch(err){report(err);}
 }
-$('copy').onclick=()=>copyText(valueOf('recipe'),$('copy'),'复制画师串');
+$('copy').onclick=async()=>{try{const fixed=await recipeEditor.check(true);await copyText(fixed.text,$('copy'),'复制画师串');}catch(err){report(err);}};
 $('copy-negative').onclick=()=>copyText(exampleNegative,$('copy-negative'),'复制负面词');
 function pick(target=null){
   if(state.busy)return;state.pendingTarget=target;$('file').value='';$('file').click();
@@ -273,6 +274,7 @@ $('confirm').onclick=async()=>{
   if(target===null&&!valueOf('name').trim()){$('save-dialog').close();toast('请为新收藏填写名称',true);$('name').focus();return;}
   $('save-dialog').close();busy(true);
   try{
+    await recipeEditor.check();
     const draft=state.draft;
     const result=await api('/api/save',jsonOptions('POST',{...fields(),image:await base64(draft.file),filename:draft.file.name,target_id:target}));
     await styles();await detail(result.id);
@@ -283,11 +285,12 @@ $('confirm').onclick=async()=>{
 };
 $('save').onclick=async()=>{
   if(state.busy)return;
-  if(state.draft){saveDialog();return;}
-  if(!state.detail)return;
-  if(!valueOf('name').trim()){toast('请填写画风名称',true);$('name').focus();return;}
   busy(true);
   try{
+    await recipeEditor.check();
+    if(state.draft){saveDialog();return;}
+    if(!state.detail)return;
+    if(!valueOf('name').trim()){toast('请填写画风名称',true);$('name').focus();return;}
     const id=state.detail.id,example=state.example?.id;
     await api('/api/styles/'+id,jsonOptions('PUT',fields()));
     await styles();await detail(id,example);toast('画风修改已保存');
@@ -340,5 +343,5 @@ document.addEventListener('click',async event=>{
       putForm(saved.fields,saved.mode,saved.warnings?[saved.warnings]:[]);state.original=saved.original;syncForm();
     }
   }
-  catch(err){report(err);}finally{busy(false);}
+  catch(err){report(err);}finally{busy(false);recipeEditor.check().catch(report);}
 })();

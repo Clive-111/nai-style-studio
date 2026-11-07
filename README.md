@@ -6,6 +6,7 @@
 - 通过 OpenAI 兼容接口整理需求、参考图与画师串，再调用 NAI 生图。
 - 支持参数调整、底图重绘、局部重绘和模型支持的参考图功能。
 - 保存生成历史，切图同步参数与负面词，复用历史提示词直接重 Roll。
+- 自动恢复画家 emoji 导致的 `artist:` 和权重格式损坏，覆盖导入、粘贴、复制、保存及生成；未识别的 emoji 会标出位置并暂停提交 NAI。
 
 ## 启动
 
@@ -49,10 +50,12 @@ docker compose down
 
 镜像构建仅收录源码与依赖；个人数据和配置通过本地目录挂载。Linux 凭据使用 [Fernet 认证加密](https://cryptography.io/en/stable/fernet/)。
 
+升级启动时会检查收藏和草稿中的画师串，发现可修复内容后先将数据库备份到运行数据目录的 `backups/`，再更新画师串。原图元数据和历史实际发送记录保留；历史重 Roll 的新记录会注明当次格式修复。
+
 ## 测试
 
 ```powershell
-py -3 -B -m unittest test_generation test_reroll test_provider_settings
+py -3 -B -m unittest test_generation test_reroll test_provider_settings test_recipe_repair
 ```
 
 测试使用虚构素材及模拟接口，临时文件保存在 `data/test-runs/`。

@@ -6,6 +6,8 @@ import sqlite3
 import tempfile
 from contextlib import contextmanager
 from pathlib import Path
+from datetime import datetime, timezone
+from recipe_repair import repair_recipe
 
 
 class Library:
@@ -54,6 +56,46 @@ class Library:
             finally:
                 temp.unlink(missing_ok=True)
         return digest
+
+    def repair_saved_recipes(self):
+        """Back up a stable database snapshot, then update editable recipes only."""
+        with self.connection() as db:
+            db.execute('BEGIN IMMEDIATE')
+            updates = []
+            for row in db.execute('SELECT id,recipe FROM styles'):
+                fixed = repair_recipe(row['recipe'])
+                if fixed['count']:
+                    updates.append((row['id'], fixed))
+            draft = None
+            if db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='generation_draft'").fetchone():
+                row = db.execute('SELECT payload FROM generation_draft WHERE id=1').fetchone()
+                if row:
+                    value = json.loads(row[0])
+                    fixed = repair_recipe(value.get('recipe', ''))
+                    if fixed['count']:
+                        value['recipe'] = fixed['text']
+                        draft = (value, fixed)
+            if not updates and draft is None:
+                return None
+            folder = self.directory / 'backups'
+            folder.mkdir(exist_ok=True)
+            backup = folder / ('artist-emoji-' + datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S%fZ') + '.sqlite3')
+            source = sqlite3.connect((self.directory / 'library.sqlite3').resolve().as_uri() + '?mode=ro', uri=True)
+            destination = sqlite3.connect(backup)
+            try:
+                source.backup(destination)
+                if destination.execute('PRAGMA integrity_check').fetchone()[0] != 'ok':
+                    raise ValueError('数据库备份校验失败，画师串尚未修改')
+            finally:
+                destination.close()
+                source.close()
+            for sid, fixed in updates:
+                db.execute('UPDATE styles SET recipe=? WHERE id=?', (fixed['text'], sid))
+            if draft:
+                db.execute('UPDATE generation_draft SET payload=? WHERE id=1', (json.dumps(draft[0]),))
+            return {'repaired_styles': len(updates), 'repaired_draft': bool(draft),
+                    'repairs': sum(f['count'] for _, f in updates) + (draft[1]['count'] if draft else 0),
+                    'backup': str(backup)}
 
     def seed(self, records):
         with self.connection() as db:
@@ -106,6 +148,8 @@ class Library:
             return style
 
     def save(self, target, fields, image, metadata, filename):
+        if fields:
+            fields = [fields[0], fields[1], repair_recipe(fields[2])['text']]
         with self.connection() as db:
             db.execute("BEGIN IMMEDIATE")
             if target is None:
@@ -130,6 +174,8 @@ class Library:
             return {"id": target, "duplicate": False}
 
     def edit(self, sid, fields=None, cover=None):
+        if fields:
+            fields = [fields[0], fields[1], repair_recipe(fields[2])['text']]
         with self.connection() as db:
             db.execute("BEGIN IMMEDIATE")
             self.summaries(db, sid)

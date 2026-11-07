@@ -27,6 +27,7 @@ function fill(){
     if(field.type==='checkbox')field.checked=Boolean(state.draft[field.id]);else field.value=state.draft[field.id]??'';
   }
   updateControls();renderSelection();renderBase();renderAnalysis();updateMode();renderPrevious();
+  recipeEditor.check().catch(report);
 }
 function writeDraft(draft){
   const snapshot=structuredClone(draft);
@@ -34,6 +35,7 @@ function writeDraft(draft){
   draftSaveQueue=saving;return saving;
 }
 function saveDraft(){if(!state.initialized)return;state.draft=current();clearTimeout(draftTimer);draftTimer=setTimeout(()=>writeDraft(current()).catch(report),500);}
+const recipeEditor=RecipeRepair.bind($('recipe'),{read:()=>current().recipe||'',onChange:()=>{saveDraft();schedulePreview();},notify:toast});
 async function persistDraft(){if(!state.draft)return;clearTimeout(draftTimer);state.draft=current();await writeDraft(state.draft);}
 window.addEventListener('pagehide',()=>{if(state.initialized)fetch(prefix+'draft',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(current()),keepalive:true}).catch(()=>{});});
 document.querySelectorAll('a[href="/"]').forEach(link=>link.addEventListener('click',async event=>{
@@ -90,7 +92,7 @@ $('copy-job').onclick=e=>copyRecord(e.currentTarget,state.job?.record?.final_pro
 function pane(name){document.querySelector('.studio').dataset.mobile=name;document.querySelectorAll('[data-pane]').forEach(b=>b.classList.toggle('active',b.dataset.pane===name));}
 document.querySelectorAll('[data-pane]').forEach(b=>b.onclick=()=>pane(b.dataset.pane));
 document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>$(b.dataset.close).close());
-document.querySelectorAll('[data-copy]').forEach(b=>b.onclick=async()=>{try{await navigator.clipboard.writeText(current()[b.dataset.copy]||'');const old=b.textContent;b.textContent='已复制';setTimeout(()=>b.textContent=old,1500);}catch{toast('复制失败，请选中文本手动复制。',true);}});
+document.querySelectorAll('[data-copy]').forEach(b=>b.onclick=async()=>{try{const text=b.dataset.copy==='recipe'?(await recipeEditor.check(true)).text:current()[b.dataset.copy]||'';await navigator.clipboard.writeText(text);const old=b.textContent;b.textContent='已复制';setTimeout(()=>b.textContent=old,1500);}catch(error){toast(error.message||'复制失败，请选中文本手动复制。',true);}});
 $('size-preset').onchange=()=>{if($('size-preset').value==='custom')return;const [w,h]=$('size-preset').value.split(',');$('width').value=w;$('height').value=h;invalidateMask();updateControls();saveDraft();schedulePreview();};
 $('swap-size').onclick=()=>{const w=$('width').value;$('width').value=$('height').value;$('height').value=w;invalidateMask();updateControls();saveDraft();schedulePreview();};
 $('nearest-size').onclick=async()=>{try{const size=await api('nearest-size',{width:Number($('width').value)||1024,height:Number($('height').value)||1024});$('width').value=size.width;$('height').value=size.height;invalidateMask();updateControls();saveDraft();schedulePreview();}catch(e){report(e);}};
@@ -219,7 +221,7 @@ window.addEventListener('dragover',e=>e.preventDefault());window.addEventListene
 function displayImage(entry){
   state.image=entry;state.view='result';const d=entry.snapshot;
   showCanvas(entry.url,d.style_name||'生成结果',d.width+' × '+d.height);$('result-actions').hidden=false;$('actual-details').hidden=false;
-  $('actual-json').textContent=JSON.stringify({生成方式:d.generation_kind==='reroll'?'历史提示词重 Roll':'AI 整理后生成',来源历史图:d.source_image_id,中文需求:d.request,原始画师串:d.recipe,AI参考图:d.analysis_image,整理时素材:d.composition?.source,AI整理结果:d.composition?.ai_prompt,处理说明:d.composition?.notes,最终生图提示词:d.final_prompt,实际发送正向:d.sent_prompt??d.final_prompt,完整发送负面:d.final_negative,模型:d.actual_model||d.model,参数:{sampler:d.sampler,steps:d.steps,guidance:d.guidance,rescale:d.rescale,负面强度:d.uc_strength,噪声调度:d.schedule,seed:d.seed,width:d.width,height:d.height},图像引导:{模式:d.mode,底图:d.base,适配:d.fit,strength:d.strength,noise:d.noise,遮罩:d.mask,启用参考:d.use_reference,参考类型:d.reference_type,影响强度:d.reference_strength,还原度:d.reference_fidelity}},null,2);
+  $('actual-json').textContent=JSON.stringify({生成方式:d.generation_kind==='reroll'?'历史提示词重 Roll':'AI 整理后生成',来源历史图:d.source_image_id,中文需求:d.request,原始画师串:d.recipe,AI参考图:d.analysis_image,整理时素材:d.composition?.source,AI整理结果:d.composition?.ai_prompt,格式修复:d.prompt_repairs,处理说明:d.composition?.notes,最终生图提示词:d.final_prompt,实际发送正向:d.sent_prompt??d.final_prompt,完整发送负面:d.final_negative,模型:d.actual_model||d.model,参数:{sampler:d.sampler,steps:d.steps,guidance:d.guidance,rescale:d.rescale,负面强度:d.uc_strength,噪声调度:d.schedule,seed:d.seed,width:d.width,height:d.height},图像引导:{模式:d.mode,底图:d.base,适配:d.fit,strength:d.strength,noise:d.noise,遮罩:d.mask,启用参考:d.use_reference,参考类型:d.reference_type,影响强度:d.reference_strength,还原度:d.reference_fidelity}},null,2);
   $('download').href=entry.url;$('download').download='NAI-'+entry.id+'.png';updateControls();renderHistory();
 }
 function applyHistorySettings(entry){
@@ -283,7 +285,7 @@ function renderJob(){
   const record=job.record;
   const reroll=job.generation_kind==='reroll';
   $('job-details').hidden=!record?.composition&&!reroll;
-  $('job-json').textContent=record&&(record.composition||reroll)?JSON.stringify({生成方式:reroll?'历史提示词重 Roll':'AI 整理后生成',来源历史图:job.source_image_id,中文需求:record.request,画师串:record.recipe,AI参考图:record.analysis_image,本次正向文本:record.final_prompt,原始处理说明:record.composition?.notes,负面提示词:record.negative},null,2):'';
+  $('job-json').textContent=record&&(record.composition||reroll)?JSON.stringify({生成方式:reroll?'历史提示词重 Roll':'AI 整理后生成',来源历史图:job.source_image_id,中文需求:record.request,画师串:record.recipe,AI参考图:record.analysis_image,本次正向文本:record.final_prompt,原始处理说明:record.composition?.notes,格式修复:record.prompt_repairs,负面提示词:record.negative},null,2):'';
   const progress=`${job.completed} / ${job.total} 张`;
   $('job-status').className=job.error?'error':'';
   if(running){
@@ -301,7 +303,7 @@ $('generate').onclick=async()=>{
   if(isRunning()||state.submitting||state.imageLoading||state.uploadBusy)return;
   // Freeze exactly the click-time inputs; later edits stay in the next draft.
   const submitted=structuredClone(current());state.submitting=true;updateControls();$('submit-error').hidden=true;
-  try{await persistDraft();state.job=(await api('start',submitted)).job;renderJob();pane('result');poll();}
+  try{await recipeEditor.check();await persistDraft();state.job=(await api('start',submitted)).job;renderJob();pane('result');poll();}
   catch(e){$('submit-error').textContent=e.message;$('submit-error').hidden=false;report(e);}
   finally{state.submitting=false;updateControls();}
 };

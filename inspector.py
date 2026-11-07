@@ -7,6 +7,7 @@ import zlib
 from itertools import islice
 
 from PIL import Image, UnidentifiedImageError
+from recipe_repair import repair_recipe
 
 
 MAX_PIXELS = 24_000_000
@@ -243,10 +244,15 @@ def inspect_png(data: bytes) -> dict:
         "raw": fields,
     }
     warnings = []
+    repaired = repair_recipe(explicit or prompt)
+    if repaired['count']:
+        warnings.append(f"已修复 {repaired['count']} 处画师 emoji 格式，原始记录已保留。")
+    warnings.extend(item['message'] for item in repaired['warnings'])
     if explicit:
-        recipe, mode = explicit, "explicit"
+        recipe, mode = repaired['text'], "explicit"
     elif prompt:
-        recipe, warnings = _extract(prompt)
+        recipe, extraction_warnings = _extract(repaired['text'])
+        warnings.extend(extraction_warnings)
         mode = "suggested"
     else:
         recipe, mode = "", "manual"

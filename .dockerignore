@@ -8,12 +8,15 @@
 !library.py
 !prompt_composer.py
 !provider_settings.py
+!recipe_repair.py
 !test_generation.py
 !test_reroll.py
 !test_provider_settings.py
+!test_recipe_repair.py
 !static/
 !static/app.js
 !static/generate.js
+!static/recipe-repair.js
 !static/style.css
 !static/generate.css
 !static/index.html

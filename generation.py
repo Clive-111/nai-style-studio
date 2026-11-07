@@ -19,6 +19,15 @@ from PIL import Image, ImageOps, ImageFilter, PngImagePlugin
 from inspector import inspect_png
 from provider_settings import ProviderSettings, validate_url
 from prompt_composer import COMPOSE_INSTRUCTION, recipe_units, parse_composition
+from recipe_repair import repair_recipe, require_clean
+
+
+def repair_input(data, field, strict=True):
+    result = require_clean(data[field], '画师串' if field == 'recipe' else '正向提示词') if strict else repair_recipe(data[field])
+    data[field] = result['text']
+    if result['count']:
+        data.setdefault('prompt_repairs', []).append({'field': field, 'count': result['count'], 'changes': result['changes']})
+    return result
 
 SAMPLERS = {"k_euler_ancestral": "Euler Ancestral", "k_euler": "Euler",
             "k_dpmpp_2s_ancestral": "DPM++ 2S Ancestral", "k_dpmpp_2m_sde": "DPM++ 2M SDE",
@@ -316,7 +325,7 @@ class GenerationService:
 
     def request(self, d, seed, include_images=True):
         model = MODEL_MAP[d["model"]]
-        prompt = d["final_prompt"]
+        prompt = require_clean(d["final_prompt"], '正向提示词')['text']
         negative = (NEGATIVE_PRESETS[d["uc_preset"]] + (", " if d["negative"] else "")
                     if d["uc_preset"] != "none" else "") + d["negative"]
         p = {"params_version": 4, "width": d["width"], "height": d["height"],
@@ -376,6 +385,7 @@ class GenerationService:
 
     def start(self, raw):
         d = validate(raw)
+        repair_input(d, 'recipe')
         # Old outputs are archival data, never inputs to a fresh composition.
         d.update(final_prompt="", composition=None, final_source=None, prompt_origin="ai",
                  generation_kind="compose")
@@ -395,6 +405,8 @@ class GenerationService:
             d[key] = copy.deepcopy(source.get(key, DEFAULTS[key]))
         d.update(final_prompt=prompt, prompt_origin="reroll", generation_kind="reroll",
                  source_image_id=image_id, quality="none")
+        repair_input(d, 'recipe', strict=False)
+        repair_input(d, 'final_prompt')
         return self.enqueue(d)
 
     def enqueue(self, d):
@@ -434,6 +446,7 @@ class GenerationService:
                     ("request", "recipe", "analysis_image", "model", "quality")}}, config["assistant"])
                 d.update(final_prompt=composed["final_prompt"], composition=composed["composition"],
                          final_source=composed["composition"]["source"])
+                repair_input(d, 'final_prompt')
                 with self.library.connection() as db:
                     db.execute("UPDATE generation_jobs SET payload=? WHERE id=?", (json.dumps(d), job))
             stage = "NAI 生图"
@@ -516,7 +529,7 @@ class GenerationService:
             saved = json.loads(row["payload"])
             result["generation_kind"] = saved.get("generation_kind", "compose")
             result["source_image_id"] = saved.get("source_image_id")
-            result["record"] = {k: saved.get(k) for k in ("request", "recipe", "negative", "analysis_image", "composition", "final_prompt")}
+            result["record"] = {k: saved.get(k) for k in ("request", "recipe", "negative", "analysis_image", "composition", "final_prompt", "prompt_repairs")}
             result["images"] = [r[0] for r in db.execute("SELECT id FROM generation_images WHERE job_id=? ORDER BY created", (row["id"],))]
             return {"job": result}
 
@@ -569,6 +582,7 @@ class GenerationService:
                 # Drafts can be incomplete; validation happens at preview/submission.
                 upgraded = upgrade_prompt(data)
                 value = {k: upgraded.get(k, v) for k, v in DEFAULTS.items()}
+                value['recipe'] = repair_recipe(value['recipe'])['text']
                 db.execute("INSERT OR REPLACE INTO generation_draft VALUES(1,?)", (json.dumps(value),))
                 return {"saved": True}
             row = db.execute("SELECT payload FROM generation_draft WHERE id=1").fetchone()
@@ -591,6 +605,7 @@ class GenerationService:
                 raise ValueError("整理素材内容无效或过长")
             if source["model"] not in MODEL_MAP or source["quality"] not in QUALITY:
                 raise ValueError("请选择有效的模型与质量设置")
+            repair_input(source, 'recipe')
             if not any(source[k].strip() for k in ("request", "recipe", "analysis_image")):
                 raise ValueError("请填写画面需求、选择画师串或添加 AI 参考图")
             units = recipe_units(source["recipe"])
