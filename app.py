@@ -232,13 +232,14 @@ class Handler(BaseHTTPRequestHandler):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", type=int, default=8724)
+    parser.add_argument("--host", choices=("127.0.0.1", "0.0.0.0"), default="127.0.0.1")
     parser.add_argument("--data", type=Path, default=ROOT / "data")
     parser.add_argument("--open", action="store_true")
     args = parser.parse_args()
     url = f"http://127.0.0.1:{args.port}/"
     library = Library(args.data)
     try:
-        server = ThreadingHTTPServer(("127.0.0.1", args.port), partial(Handler, library=library))
+        server = ThreadingHTTPServer((args.host, args.port), partial(Handler, library=library))
     except OSError:
         if args.open:
             try:

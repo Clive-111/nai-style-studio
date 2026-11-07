@@ -1,0 +1,20 @@
+# Build context contains only code and dependency metadata.
+**
+!Dockerfile
+!requirements.txt
+!app.py
+!generation.py
+!inspector.py
+!library.py
+!prompt_composer.py
+!provider_settings.py
+!test_generation.py
+!test_reroll.py
+!test_provider_settings.py
+!static/
+!static/app.js
+!static/generate.js
+!static/style.css
+!static/generate.css
+!static/index.html
+!static/generate.html

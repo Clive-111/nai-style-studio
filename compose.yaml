@@ -1,0 +1,19 @@
+name: nai-style-studio
+services:
+  app:
+    build:
+      context: .
+      target: production
+    image: nai-style-studio:local
+    container_name: nai-style-studio
+    restart: unless-stopped
+    init: true
+    ports:
+      - "127.0.0.1:8724:8724"
+    volumes:
+      - ./data/docker:/app/data
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
